@@ -1,0 +1,38 @@
+network:
+  version: 2
+  ethernets:
+%{ for data in network_data ~}
+    ${data.interface_name}:
+      match:
+        macaddress: "${data.macaddress}"
+      set-name: "${data.interface_name}"
+%{ if length(data.addresses) > 0 ~}
+      addresses:
+%{ for address in data.addresses ~}
+        - "${address}"
+%{ endfor ~}
+%{ endif ~}
+%{ if data.gateway4 != null ~}
+      gateway4: "${data.gateway4}"
+%{ endif ~}
+%{ if data.gateway6 != null ~}
+      gateway6: "${data.gateway6}"
+%{ endif ~}
+      dhcp4: ${coalesce(data.dhcp4, length(data.addresses) == 0)}
+      dhcp6: ${data.dhcp6}
+%{ if length(data.dns_servers) > 0 || length(data.dns_domains) > 0 ~}
+      nameservers:
+%{ if length(data.dns_servers) > 0 ~}
+        addresses:
+%{ for server in data.dns_servers ~}
+          - "${server}"
+%{ endfor ~}
+%{ endif ~}
+%{ if length(data.dns_domains) > 0 ~}
+        search:
+%{ for domain in data.dns_domains ~}
+          - "${domain}"
+%{ endfor ~}
+%{ endif ~}
+%{ endif ~}
+%{ endfor ~}

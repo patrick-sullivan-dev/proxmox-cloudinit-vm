@@ -1,0 +1,62 @@
+#cloud-config
+timezone: America/New_York
+locale: en_US.UTF-8
+
+%{ if hostname != null ~}
+hostname: "${hostname}"
+create_hostname_file: true
+%{ endif ~}
+%{ if fqdn != null ~}
+fqdn: "${fqdn}"
+prefer_fqdn_over_hostname: true
+%{ endif ~}
+
+users:
+%{ for data in user_data ~}
+  - name: ${data.username}
+    gecos: Terraform
+%{ if data.sudo != null ~}
+    sudo: ${data.sudo}
+%{ endif ~}
+%{ if data.password != null ~}
+    passwd: "${data.password}"
+    lock_passwd: false
+%{ endif ~}
+%{ if data.shell != null ~}
+    shell: ${data.shell}
+%{ endif ~}
+%{ if length(data.groups) > 0 ~}
+    groups:
+%{ for group in data.groups ~}
+      - "${group}"
+%{ endfor ~}
+%{ endif ~}
+%{ if length(data.ssh_import_ids) > 0 ~}
+    ssh_import_id:
+%{ for id in data.ssh_import_ids ~}
+      - "${id}"
+%{ endfor ~}
+%{ endif ~}
+%{ if length(data.authorized_keys) > 0 ~}
+    ssh_authorized_keys:
+%{ for key in data.authorized_keys ~}
+      - "${key}"
+%{ endfor ~}
+%{ endif ~}
+%{ endfor ~}
+
+package_reboot_if_required: true
+package_update: true
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+  - ssh-import-id
+%{ if length(packages) > 0 ~}
+%{ for pkg in packages ~}
+  - ${pkg}
+%{ endfor ~}
+%{ endif ~}
+
+runcmd:
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent
