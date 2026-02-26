@@ -197,18 +197,6 @@ variable "network" {
     dns_servers    = []
     dns_domains    = []
     mac_prefix     = [2]
-
-    gateway4       = null
-    bridge         = "vmbr0"
-    vlan_id        = null
-    rate_limit     = null
-    firewall       = true
-    disconnected   = false
-    mtu            = null
-    multi_queue    = null
-    dns_servers    = []
-    dns_domains    = []
-    mac_prefix     = [2]
   }]
   nullable = false
 }
