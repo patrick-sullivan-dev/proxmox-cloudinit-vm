@@ -1,0 +1,123 @@
+name: Bug Report
+description: Report a bug or issue
+title: "[Bug]: "
+labels:
+  - bug
+assignees:
+  - patrick-sullivan-dev
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Remove any credentials, tokens, addresses, or other sensitive information before submitting.
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current behavior
+      description: What happens now?
+      placeholder: Describe the current behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: What should happen instead?
+      placeholder: Describe the expected behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest Terraform configuration that reproduces the issue.
+      render: hcl
+      placeholder: |
+        module "vm" {
+          source = "..."
+
+          # Minimal configuration
+        }
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run ...
+        2. Configure ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: input
+    id: module-version
+    attributes:
+      label: Module version or commit
+      placeholder: v1.0.0 or commit SHA
+    validations:
+      required: true
+
+  - type: input
+    id: terraform-version
+    attributes:
+      label: Terraform version
+      placeholder: Terraform v1.9.0
+    validations:
+      required: true
+
+  - type: input
+    id: provider-version
+    attributes:
+      label: Provider version
+      placeholder: bpg/proxmox v0.66.3
+    validations:
+      required: true
+
+  - type: input
+    id: proxmox-version
+    attributes:
+      label: Proxmox VE version
+      placeholder: Proxmox VE 8.2
+    validations:
+      required: true
+
+  - type: input
+    id: cloud-image
+    attributes:
+      label: Cloud image
+      placeholder: Ubuntu Server 24.04 LTS
+    validations:
+      required: true
+
+  - type: textarea
+    id: relevant-output
+    attributes:
+      label: Relevant output
+      description: Include relevant plan/apply output, provider errors, or cloud-init logs.
+      render: text
+      placeholder: Paste sanitized output here.
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other information, screenshots, logs, or related issues.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: sensitive-data
+    attributes:
+      label: Sensitive information
+      options:
+        - label: I have removed credentials, tokens, addresses, and other sensitive information.
+          required: true
