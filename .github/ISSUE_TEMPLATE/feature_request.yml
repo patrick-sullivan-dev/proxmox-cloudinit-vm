@@ -1,0 +1,111 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+assignees:
+  - patrick-sullivan-dev
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature. Describe the use case and keep the request focused on a specific improvement.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem or limitation does this feature address?
+      placeholder: Describe the problem or limitation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: What would you like the module to support?
+      placeholder: Describe the proposed feature or behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example-usage
+    attributes:
+      label: Example usage
+      description: Show how the feature could be configured or used.
+      render: hcl
+      placeholder: |
+        module "vm" {
+          source = "..."
+
+          # Proposed configuration
+        }
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any alternative solutions or workarounds you considered.
+      placeholder: Describe any existing workaround or alternative approach.
+    validations:
+      required: false
+
+  - type: input
+    id: module-version
+    attributes:
+      label: Module version or commit
+      placeholder: v1.0.0 or commit SHA
+    validations:
+      required: false
+
+  - type: input
+    id: terraform-version
+    attributes:
+      label: Terraform version
+      placeholder: Terraform v1.9.0
+    validations:
+      required: false
+
+  - type: input
+    id: provider-version
+    attributes:
+      label: Provider version
+      placeholder: bpg/proxmox v0.66.3
+    validations:
+      required: false
+
+  - type: input
+    id: proxmox-version
+    attributes:
+      label: Proxmox VE version
+      placeholder: Proxmox VE 8.2
+    validations:
+      required: false
+
+  - type: input
+    id: cloud-image
+    attributes:
+      label: Cloud image
+      placeholder: Ubuntu Server 24.04 LTS
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other information, examples, screenshots, or related issues.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This request is focused on a specific feature or improvement.
+          required: true
