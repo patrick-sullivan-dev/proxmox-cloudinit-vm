@@ -1,7 +1,7 @@
 # ===================================================
 # General VM Settings
 # ===================================================
-variable "id" {
+variable "vm_id" {
   description = "The ID of the VM to be created"
   type        = number
 }
@@ -30,100 +30,78 @@ variable "node_name" {
   type        = string
 }
 
-variable "vm_hostname" {
-  description = "The hostname of the VM"
-  type        = string
-  default     = null
-  nullable    = true
-}
-
-variable "vm_fqdn" {
-  description = "The FQDN of the VM"
-  type        = string
-  default     = null
-  nullable    = true
-}
-
 variable "pool_id" {
-  description = "Optional pool to assign VM to"
+  description = "Proxmox pool to add the VM to"
   type        = string
   default     = null
-}
-
-variable "on_boot" {
-  description = "Whether to start VM on boot"
-  type        = bool
-  default     = true
-  nullable    = false
+  nullable    = true
 }
 
 # ===================================================
 # System / OS Settings
 # ===================================================
 variable "system" {
-  description = "System and OS specifications for the VM"
+  description = <<-EOT
+    System configuration, defaults to q35 / ovmf / l26 with a 4m EFI disk and no TPM.
+
+    EFI disk automatically created when bios is set to "ovmf", only need to change if not happy with defaults.
+    Datastores for EFI and TPM state default to local-lvm and can be overridden with datastore_id.
+  EOT
+
   type = object({
-    machine      = optional(string, "q35")
-    bios         = optional(string, "ovmf")
-    os_type      = optional(string, "l26")
-    tpm          = optional(object({ version = string }), { version = "none" })
-    efi_disk     = optional(object({
+    machine = optional(string, "q35")
+    bios    = optional(string, "ovmf")
+    os_type = optional(string, "l26")
+    efi_disk = optional(object({
       datastore_id      = optional(string)
       file_format       = optional(string)
-      type              = optional(string)
+      type              = optional(string, "4m")
       pre_enrolled_keys = optional(bool)
     }), {})
-    qemu_agent   = optional(object({
-      enabled = optional(bool, true)
-      timeout = optional(string, "15m")
-      trim    = optional(bool, false)
-      type    = optional(string, "virtio")
-    }), { enabled = true, timeout = "15m", trim = false, type = "virtio" })
+    tpm_state = optional(object({
+      datastore_id = optional(string)
+      version      = optional(string)
+    }))
   })
-
-  default = {
-    machine    = "q35"
-    bios       = "ovmf"
-    os_type    = "l26"
-    tpm        = { version = "none" }
-    qemu_agent = { timeout = "15m", trim = false, type = "virtio" }
-  }
+  default  = {}
   nullable = false
-
-  validation {
-    condition     = contains(["pc", "q35"], var.system.machine)
-    error_message = "Machine type must be either q35 or pc"
-  }
-  validation {
-    condition     = contains(["ovmf", "seabios"], var.system.bios)
-    error_message = "Bios must be ovmf or seabios"
-  }
-  validation {
-    condition     = contains(["virtio", "isa"], var.system.qemu_agent.type)
-    error_message = "QEMU agent type must be either virtio or isa"
-  }
-  validation {
-    condition     = contains(["v2.0", "v1.2", "none"], var.system.tpm.version)
-    error_message = "TPM version must be either v1.2, v2.0, or none"
-  }
 }
 
 # ===================================================
 # CPU & Memory Settings
 # ===================================================
-variable "hardware" {
-  description = "CPU and memory specifications for the VM"
+
+variable "cpu" {
+  description = "CPU configuration, defaults to 2 x86-64-v2-AES cores"
+
   type = object({
-    core_count        = number
-    cpu_type          = optional(string, "x86-64-v2-AES")
-    memory            = number
-    memory_ballooning = optional(bool, true)
+    architecture = optional(string, "x86_64")
+    cores        = optional(number, 2)
+    flags        = optional(list(string))
+    hotplugged   = optional(number)
+    limit        = optional(number)
+    numa         = optional(bool)
+    sockets      = optional(number)
+    type         = optional(string, "x86-64-v2-AES")
+    units        = optional(number)
+    affinity     = optional(string)
   })
 
-  validation {
-    condition     = var.hardware.core_count > 0
-    error_message = "VM must have at least 1 vCPU assigned"
-  }
+  default  = {}
+  nullable = false
+}
+
+variable "memory" {
+  description = "Memory configuration (1GB = 1024), defaults to 2GB with ballooning enabled"
+  type = object({
+    dedicated         = optional(number, 2048)
+    ballooning_device = optional(bool, true)
+    shared            = optional(number)
+    hugepages         = optional(string)
+    keep_hugepages    = optional(bool)
+  })
+  default  = {}
+  nullable = false
 }
 
 # ===================================================
@@ -133,33 +111,31 @@ variable "disks" {
   description = <<-EOT
     Disk specifications.
 
-    If datastore_id is not provided, it defaults to proxmox_storage.disks.
-   
     Specify only the disk interface type: scsi, sata, or virtio.
     Do not include an index such as scsi0; indexes are assigned automatically.
-   
+
     The import_from and file_id values are populated automatically for the
-    first disk using cloud_image.
+    first disk using the cloud_image var.
   EOT
 
-
   type = list(object({
-    aio          = optional(string)
-    backup       = optional(bool)
-    cache        = optional(string)
-    datastore_id = optional(string)
-    discard      = optional(bool)
-    file_format  = optional(string, "raw")
-    file_id      = optional(string)
-    import_from  = optional(string)
-    interface    = optional(string, "scsi")
-    iothread     = optional(bool)
-    queues       = optional(number)
-    replicate    = optional(bool)
-    serial       = optional(string)
-    size         = optional(number)
-    ssd          = optional(bool)
-    speed        = optional(object({
+    aio               = optional(string)
+    backup            = optional(bool)
+    cache             = optional(string)
+    datastore_id      = optional(string, "local-lvm")
+    discard           = optional(string)
+    file_format       = optional(string, "raw")
+    file_id           = optional(string)
+    import_from       = optional(string)
+    interface         = optional(string, "scsi")
+    iothread          = optional(bool)
+    path_in_datastore = optional(string)
+    queues            = optional(number)
+    replicate         = optional(bool)
+    serial            = optional(string)
+    size              = optional(number)
+    ssd               = optional(bool)
+    speed = optional(object({
       iops_read            = optional(number)
       iops_read_burstable  = optional(number)
       iops_write           = optional(number)
@@ -171,67 +147,62 @@ variable "disks" {
     }))
   }))
 
+  validation {
+    condition     = length(var.disks) > 0
+    error_message = "At least one disk must be configured."
+  }
 
   validation {
-    condition = alltrue([for idx, disk in var.disks : contains(["scsi", "sata", "virtio"], disk.interface)])
+    condition     = alltrue([for disk in var.disks : contains(["scsi", "sata", "virtio"], disk.interface)])
     error_message = "Interface must be one of scsi, sata, virtio. Do not append index."
   }
+
+  nullable = false
 }
 
 variable "cloud_image" {
   description = <<-EOT
     Cloud image used to initialize the VM.
 
-
     Provide either import_from or file_id using a Proxmox file identifier.
 
-
     For uncompressed images stored with content type "import":
-
 
       cloud_image = {
         import_from = "<datastore_id>:import/<file_name>"
       }
 
-
     For images stored under another supported content type, such as "iso":
-
 
       cloud_image = {
         file_id = "<datastore_id>:<content_type>/<file_name>"
       }
 
-
     Either value may also reference the ID returned by a
     proxmox_virtual_environment_download_file resource:
-
 
       cloud_image = {
         import_from = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
       }
-
 
       cloud_image = {
         file_id = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
       }
   EOT
 
-
   type = object({
     import_from = optional(string)
     file_id     = optional(string)
   })
 
-
   validation {
     condition = !(
       var.cloud_image.import_from != null &&
       var.cloud_image.file_id != null
-  )
+    )
 
-  error_message = "Only one of cloud_image.import_from or cloud_image.file_id may be provided."
-}
-
+    error_message = "Only one of cloud_image.import_from or cloud_image.file_id may be provided."
+  }
 
   validation {
     condition = alltrue([
@@ -241,139 +212,402 @@ variable "cloud_image" {
       ] : value == null || trimspace(value) != ""
     ])
 
-
     error_message = "cloud_image values must not be empty strings."
   }
 
-  default = {}
+  default  = {}
+  nullable = false
 }
 
 variable "scsi_hardware" {
   description = "SCSI controller type"
-  type = string
-  default = "virtio-scsi-single"
-}
-
-variable "proxmox_storage" {
-  description = "Storage configuration for the VM"
-  type = object({
-    snippets_id   = optional(string, "local")
-    snippets_node = optional(string, null)
-    imports_id    = optional(string, "local")
-    imports_node  = optional(string, null)
-    disk_id       = optional(string, "local-lvm")
-    efi_id        = optional(string, "local-lvm")
-  })
+  type        = string
+  default     = "virtio-scsi-single"
 }
 
 # ===================================================
 # Network Settings
 # ===================================================
-variable "network" {
-  description = "VM network interface configurations"
+variable "network_devices" {
+  description = "Network interface configurations"
   type = list(object({
-    interface_name = optional(string, "eth0")
-    model          = optional(string, "virtio")
-    addresses      = optional(list(string), [])
-    dhcp4          = optional(bool, null)
-    dhcp6          = optional(bool, null)
-    gateway4       = optional(string, null)
-    gateway6       = optional(string, null)
-    bridge         = optional(string, "vmbr0")
-    vlan_id        = optional(number, null)
-    rate_limit     = optional(number, null)
-    firewall       = optional(bool, true)
-    disconnected   = optional(bool, false)
-    mtu            = optional(number, null)
-    multi_queue    = optional(number, null)
-    dns_servers    = optional(list(string), [])
-    dns_domains    = optional(list(string), [])
-    mac_prefix     = optional(list(number), [2])
+    model        = optional(string, "virtio")
+    bridge       = optional(string, "vmbr0")
+    vlan_id      = optional(number)
+    rate_limit   = optional(number)
+    firewall     = optional(bool, true)
+    disconnected = optional(bool)
+    mtu          = optional(number)
+    multi_queue  = optional(number)
+    mac_address  = optional(string)
+    trunks       = optional(string)
   }))
 
-  default = [{
-    interface_name = "eth0"
-    model          = "virtio"
-    addresses      = []
-    dhcp4          = true
-    dhcp6          = false
-    gateway4       = null
-    gateway6       = null
-    bridge         = "vmbr0"
-    vlan_id        = null
-    rate_limit     = null
-    firewall       = true
-    disconnected   = false
-    mtu            = null
-    multi_queue    = null
-    dns_servers    = []
-    dns_domains    = []
-    mac_prefix     = [2]
-  }]
+  default  = [{}]
   nullable = false
 }
 
 # ===================================================
-# Cloud-Init / User Data
+# Cloud-Init
 # ===================================================
-variable "user_data" {
-  description = "Cloud-init user-data configuration"
-  type = list(object({
-    username        = optional(string, "ubuntu")
-    password        = optional(string, null)
-    groups          = optional(list(string), ["sudo"])
-    shell           = optional(string, "/bin/bash")
-    sudo            = optional(string, "ALL=(ALL) NOPASSWD:ALL")
-    ssh_import_ids  = optional(list(string), [])
-    authorized_keys = optional(list(string), [])
-  }))
 
-  default = [{
-    username        = "ubuntu"
-    password        = null
-    groups          = ["sudo"]
-    shell           = "/bin/bash"
-    sudo            = "ALL=(ALL) NOPASSWD:ALL"
-    ssh_import_ids  = []
-    authorized_keys = []
-  }]
+variable "cloud_init" {
+  description = "Cloud-init configuration, datastore must allow content type 'snippets' and disk datastore must allow VM images"
+  type = object({
+    datastore_id        = string
+    node_name           = optional(string)
+    disk_datastore_id   = optional(string, "local-lvm")
+    interface           = optional(string)
+    file_format         = optional(string)
+    vendor_data_file_id = optional(string)
+    meta_data_file_id   = optional(string)
+
+    hostname = optional(string, null)
+    fqdn     = optional(string, null)
+
+    user_data = optional(list(object({
+      username        = optional(string, "ubuntu")
+      password        = optional(string, null)
+      groups          = optional(list(string), ["sudo"])
+      shell           = optional(string, "/bin/bash")
+      sudoers         = optional(string, "ALL=(ALL) NOPASSWD:ALL")
+      ssh_import_ids  = optional(list(string), [])
+      authorized_keys = optional(list(string), [])
+    })), [{}])
+
+    network_data = optional(list(object({
+      interface_name = optional(string, "eth0")
+      addresses      = optional(list(string), [])
+      dhcp4          = optional(bool, null)
+      dhcp6          = optional(bool, false)
+      default_route  = optional(string, null)
+      dns_servers    = optional(list(string), [])
+      dns_domains    = optional(list(string), [])
+      mac_prefix     = optional(list(number), [2])
+    })), [{}])
+
+    packages = optional(list(string), [])
+  })
   nullable = false
 }
 
-variable "packages" {
-  description = "List of packages to install via cloud-init"
-  type        = list(string)
-  default     = []
+# ===================================================
+# Advanced Features
+# ===================================================
+
+variable "acpi" {
+  description = "Whether to enable ACPI"
+  type        = bool
+  default     = true
   nullable    = false
 }
 
-# ===================================================
-# Advanced / Optional Features
-# ===================================================
+variable "agent" {
+  description = "QEMU Guest Agent configuration"
+  type = object({
+    enabled = optional(bool, true)
+    timeout = optional(string)
+    trim    = optional(bool)
+    type    = optional(string)
+    wait_for_ip = optional(object({
+      disabled = optional(bool)
+      ipv4     = optional(bool)
+      ipv6     = optional(bool)
+    }))
+  })
+  default  = {}
+  nullable = false
+}
+
+variable "amd_sev" {
+  description = "AMD SEV configuration"
+  type = object({
+    type           = optional(string, "std")
+    allow_smt      = optional(bool, true)
+    kernel_hashes  = optional(bool, false)
+    no_debug       = optional(bool, false)
+    no_key_sharing = optional(bool, false)
+  })
+  default = null
+}
+
+variable "audio_device" {
+  description = "Audio device configuration"
+  type = object({
+    device  = optional(string, "intel-hda")
+    driver  = optional(string, "spice")
+    enabled = optional(bool, true)
+  })
+  default = null
+}
+
+variable "boot_order" {
+  description = "Boot order configuration"
+  type        = list(string)
+  default     = null
+}
+
+variable "cdrom" {
+  description = "CD-ROM configuration"
+  type = object({
+    enabled   = optional(bool, false)
+    file_id   = optional(string, "none")
+    interface = optional(string, "ide3")
+  })
+  default = null
+}
+
+variable "hostpci" {
+  description = "Host PCI passthrough configuration"
+  type = list(object({
+    device   = string
+    id       = optional(string)
+    mapping  = optional(string)
+    mdev     = optional(string)
+    pcie     = optional(bool)
+    rombar   = optional(bool)
+    rom_file = optional(string)
+    xvga     = optional(bool)
+  }))
+  default = null
+}
+
+variable "hotplug" {
+  description = "Hotplug configuration, accepts 0 to disable, 1 to enable all, or a comma-separated list of cpu, disk, memory, network, and usb"
+  type        = string
+  default     = null
+
+  validation {
+    condition = var.hotplug == null ? true : (
+      contains(["0", "1"], var.hotplug) || (
+        length(split(",", var.hotplug)) > 0 &&
+        length(distinct(split(",", var.hotplug))) == length(split(",", var.hotplug)) &&
+        alltrue([
+          for feature in split(",", var.hotplug) :
+          contains(["cpu", "disk", "memory", "network", "usb"], feature)
+        ])
+      )
+    )
+
+    error_message = "Hotplug must be 0, 1, or a comma-separated list containing cpu, disk, memory, network, and usb without duplicates."
+  }
+}
+
+variable "usb" {
+  description = "USB device configuration"
+  type = list(object({
+    host    = optional(string)
+    mapping = optional(string)
+    usb3    = optional(bool)
+  }))
+  default = null
+}
 
 variable "keyboard_layout" {
-  description = "Keyboard layout for the VM"
+  description = "Keyboard layout within Proxmox"
   type        = string
-  default     = "en-us"
-  nullable    = false
+  default     = null
+}
+
+variable "kvm_arguments" {
+  description = "Additional KVM arguments"
+  type        = string
+  default     = null
+}
+
+variable "numa" {
+  description = "The NUMA configuration"
+  type = list(object({
+    device    = string
+    cpus      = string
+    memory    = number
+    hostnodes = optional(list(string))
+    policy    = optional(string)
+  }))
+  default = null
 }
 
 variable "migrate" {
-  description = "Whether to migrate/recreate the VM on node change"
+  description = "Whether to migrate (true) or recreate (false) the VM on node change"
   type        = bool
   default     = false
   nullable    = false
 }
 
-variable "startup" {
-  description = "Startup and shutdown order configuration"
+variable "on_boot" {
+  description = "Whether to start the VM on system boot"
+  type        = bool
+  default     = true
+}
+
+variable "protection" {
+  description = "Sets the protection flag of the VM"
+  type        = bool
+  default     = false
+}
+
+variable "reboot" {
+  description = "Whether to reboot the VM after creation"
+  type        = bool
+  default     = false
+}
+
+variable "reboot_after_update" {
+  description = "Whether the provider may reboot or stop the VM when required to apply configuration updates"
+  type        = bool
+  default     = true
+}
+
+variable "rng" {
+  description = "RNG device configuration"
   type = object({
-    order      = number
-    up_delay   = optional(number, 0)
-    down_delay = optional(number, 0)
+    source    = optional(string, "/dev/urandom")
+    max_bytes = optional(number)
+    period    = optional(number)
   })
-  default  = { order = 0, up_delay = 0, down_delay = 0 }
-  nullable = false
+  default = null
+}
+
+variable "serial_device" {
+  description = "Serial device configuration"
+  type = list(object({
+    device = optional(string, "socket")
+  }))
+  default = [{}]
+}
+
+variable "started" {
+  description = "Whether to start the VM after creation"
+  type        = bool
+  default     = true
+}
+
+variable "startup" {
+  description = "Startup configuration, time measured in seconds"
+  type = object({
+    order      = optional(number)
+    up_delay   = optional(number)
+    down_delay = optional(number)
+  })
+  default = null
+}
+
+variable "stop_on_destroy" {
+  description = "Whether to stop rather than shutdown VM before destroy"
+  type        = bool
+  default     = false
+}
+
+variable "tablet_device" {
+  description = "Whether to enable the USB tablet device"
+  type        = bool
+  default     = true
+}
+
+variable "timeout_create" {
+  description = "Timeout for VM creation in seconds"
+  type        = number
+  default     = 1800
+}
+
+variable "timeout_migrate" {
+  description = "Timeout for VM migration in seconds"
+  type        = number
+  default     = 1800
+}
+
+variable "timeout_reboot" {
+  description = "Timeout for VM reboot in seconds"
+  type        = number
+  default     = 1800
+}
+
+variable "timeout_shutdown_vm" {
+  description = "Timeout for VM shutdown in seconds"
+  type        = number
+  default     = 1800
+}
+
+variable "timeout_start_vm" {
+  description = "Timeout for VM startup in seconds"
+  type        = number
+  default     = 1800
+}
+
+variable "timeout_stop_vm" {
+  description = "Timeout for stopping the VM in seconds"
+  type        = number
+  default     = 300
+}
+
+variable "purge_on_destroy" {
+  description = "Whether to purge backup configs of the VM on destroy"
+  type        = bool
+  default     = true
+}
+
+variable "delete_unreferenced_disks_on_destroy" {
+  description = "Whether to delete unreferenced disks when the VM is destroyed"
+  type        = bool
+  default     = true
+}
+
+variable "vga" {
+  description = "VGA device configuration"
+  type = object({
+    memory    = optional(number)
+    type      = optional(string)
+    clipboard = optional(string)
+  })
+  default = null
+}
+
+variable "virtiofs" {
+  description = "Virtiofs share configuration"
+  type = list(object({
+    mapping      = string
+    cache        = optional(string)
+    direct_io    = optional(bool)
+    expose_acl   = optional(bool)
+    expose_xattr = optional(bool)
+  }))
+  default = null
+}
+
+variable "hook_script_file_id" {
+  description = "Proxmox file ID for the hook script to be used with the VM"
+  type        = string
+  default     = null
+}
+
+variable "smbios" {
+  description = "SMBIOS type 1 configuration"
+  type = object({
+    family       = optional(string)
+    manufacturer = optional(string)
+    product      = optional(string)
+    serial       = optional(string)
+    sku          = optional(string)
+    uuid         = optional(string)
+    version      = optional(string)
+  })
+  default = null
+}
+
+variable "template" {
+  description = "Whether to convert the VM into a template"
+  type        = bool
+  default     = false
+}
+
+variable "watchdog" {
+  description = "Watchdog device configuration"
+  type = object({
+    enabled = optional(bool)
+    model   = optional(string)
+    action  = optional(string)
+  })
+  default = null
 }
 
 # ===================================================
