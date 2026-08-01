@@ -67,7 +67,14 @@ variable "system" {
     bios         = optional(string, "ovmf")
     os_type      = optional(string, "l26")
     tpm          = optional(object({ version = string }), { version = "none" })
+    efi_disk     = optional(object({
+      datastore_id      = optional(string)
+      file_format       = optional(string)
+      type              = optional(string)
+      pre_enrolled_keys = optional(bool)
+    }), {})
     qemu_agent   = optional(object({
+      enabled = optional(bool, true)
       timeout = optional(string, "15m")
       trim    = optional(bool, false)
       type    = optional(string, "virtio")
@@ -122,24 +129,129 @@ variable "hardware" {
 # ===================================================
 # Disk Settings
 # ===================================================
-variable "disk" {
-  description = "Disk specifications for the VM"
+variable "disks" {
+  description = <<-EOT
+    Disk specifications.
+
+    If datastore_id is not provided, it defaults to proxmox_storage.disks.
+   
+    Specify only the disk interface type: scsi, sata, or virtio.
+    Do not include an index such as scsi0; indexes are assigned automatically.
+   
+    The import_from and file_id values are populated automatically for the
+    first disk using cloud_image.
+  EOT
+
+
+  type = list(object({
+    aio          = optional(string)
+    backup       = optional(bool)
+    cache        = optional(string)
+    datastore_id = optional(string)
+    discard      = optional(bool)
+    file_format  = optional(string, "raw")
+    file_id      = optional(string)
+    import_from  = optional(string)
+    interface    = optional(string, "scsi")
+    iothread     = optional(bool)
+    queues       = optional(number)
+    replicate    = optional(bool)
+    serial       = optional(string)
+    size         = optional(number)
+    ssd          = optional(bool)
+    speed        = optional(object({
+      iops_read            = optional(number)
+      iops_read_burstable  = optional(number)
+      iops_write           = optional(number)
+      iops_write_burstable = optional(number)
+      read                 = optional(number)
+      read_burstable       = optional(number)
+      write                = optional(number)
+      write_burstable      = optional(number)
+    }))
+  }))
+
+
+  validation {
+    condition = alltrue([for idx, disk in var.disks : contains(["scsi", "sata", "virtio"], disk.interface)])
+    error_message = "Interface must be one of scsi, sata, virtio. Do not append index."
+  }
+}
+
+variable "cloud_image" {
+  description = <<-EOT
+    Cloud image used to initialize the VM.
+
+
+    Provide either import_from or file_id using a Proxmox file identifier.
+
+
+    For uncompressed images stored with content type "import":
+
+
+      cloud_image = {
+        import_from = "<datastore_id>:import/<file_name>"
+      }
+
+
+    For images stored under another supported content type, such as "iso":
+
+
+      cloud_image = {
+        file_id = "<datastore_id>:<content_type>/<file_name>"
+      }
+
+
+    Either value may also reference the ID returned by a
+    proxmox_virtual_environment_download_file resource:
+
+
+      cloud_image = {
+        import_from = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
+      }
+
+
+      cloud_image = {
+        file_id = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
+      }
+  EOT
+
+
   type = object({
-    disk_size   = number
-    hardware    = optional(string, "virtio-scsi-single")
-    cache       = optional(string, "none")
-    discard     = optional(string, "ignore")
-    interface   = optional(string, "scsi0")
-    iothread    = optional(bool, true)
-    aio         = optional(string, "threads")
-    file_format = optional(string, "raw")
-    backup      = optional(bool, true)
-    replicate   = optional(bool, true)
-    ssd         = optional(bool, false)
-    efi_disk    = optional(object({ type = string, pre_enrolled_keys = bool }), { type = "2m", pre_enrolled_keys = false })
-    serial      = optional(string, null)
-    import_from = optional(string, null)
+    import_from = optional(string)
+    file_id     = optional(string)
   })
+
+
+  validation {
+    condition = !(
+      var.cloud_image.import_from != null &&
+      var.cloud_image.file_id != null
+  )
+
+  error_message = "Only one of cloud_image.import_from or cloud_image.file_id may be provided."
+}
+
+
+  validation {
+    condition = alltrue([
+      for value in [
+        var.cloud_image.import_from,
+        var.cloud_image.file_id,
+      ] : value == null || trimspace(value) != ""
+    ])
+
+
+    error_message = "cloud_image values must not be empty strings."
+  }
+
+  default = {}
+}
+
+variable "scsi_hardware" {
+  description = "SCSI controller type"
+  type = string
+  default = "virtio-scsi-single"
 }
 
 variable "proxmox_storage" {
