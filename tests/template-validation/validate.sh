@@ -14,7 +14,7 @@ cleanup() {
       rm -rf -- "$validation_temp"
       ;;
     *)
-      printf 'Refusing to remove unexpected temporary path: %s\n' "$validation_temp" >&2
+      printf 'Failing to remove temp path: %s\n' "$validation_temp" >&2
       ;;
   esac
 }
@@ -40,7 +40,7 @@ validate_cases() {
   )
 
   if ! jq -e 'type == "object"' >/dev/null <<<"$rendered_cases"; then
-    printf 'Terraform did not return the expected fixture collection.\n' >&2
+    printf 'Terraform did not return expected test input cases.\n' >&2
     return 1
   fi
 
@@ -55,12 +55,12 @@ validate_cases() {
         --instance-data "$validation_temp/instance-data.json" \
         2>&1
     ); then
-      printf 'Cloud-init validation failed for synthetic fixture %s.\n' "$case_name" >&2
+      printf 'Cloud-init validation failed for %s.\n' "$case_name" >&2
       printf '%s\n' "$validation_output" >&2
       return 1
     fi
 
-    printf 'Validated synthetic %s fixture: %s\n' "$schema_type" "$case_name"
+    printf 'Validated %s : %s\n' "$schema_type" "$case_name"
   done < <(jq -r 'keys[]' <<<"$rendered_cases")
 }
 
