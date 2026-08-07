@@ -42,10 +42,12 @@ variable "pool_id" {
 # ===================================================
 variable "system" {
   description = <<-EOT
-    System configuration, defaults to q35 / ovmf / l26 with a 4m EFI disk and no TPM.
+    System configuration
 
-    EFI disk automatically created when bios is set to "ovmf", only need to change if not happy with defaults.
-    Datastores for EFI and TPM state default to local-lvm and can be overridden with datastore_id.
+    EFI disk automatically created when bios is set to "ovmf". 
+    datastore_id for EFI and TPM state default to local-lvm.
+
+    Defaults to q35 / ovmf / l26 with a 4m EFI disk and no TPM.
   EOT
 
   type = object({
@@ -116,6 +118,8 @@ variable "disks" {
 
     The import_from and file_id values are populated automatically for the
     first disk using the cloud_image var.
+
+    Defaults to a single 25GB disk on local-lvm with scsi interface and raw format.
   EOT
 
   type = list(object({
@@ -166,28 +170,11 @@ variable "cloud_image" {
 
     Provide either import_from or file_id using a Proxmox file identifier.
 
-    For uncompressed images stored with content type "import":
+    Use one of the following, prefer import_from unless using an iso or compressed image.
+    import_from: "<datastore_id>:import/<file_name>"
+    file_id: "<datastore_id>:<content_type>/<file_name>"
 
-      cloud_image = {
-        import_from = "<datastore_id>:import/<file_name>"
-      }
-
-    For images stored under another supported content type, such as "iso":
-
-      cloud_image = {
-        file_id = "<datastore_id>:<content_type>/<file_name>"
-      }
-
-    Either value may also reference the ID returned by a
-    proxmox_virtual_environment_download_file resource:
-
-      cloud_image = {
-        import_from = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
-      }
-
-      cloud_image = {
-        file_id = proxmox_virtual_environment_download_file.ubuntu_cloud_image.id
-      }
+    A proxmox_virtual_environment_download_file resource id can also be used instead.
   EOT
 
   type = object({
@@ -229,7 +216,7 @@ variable "scsi_hardware" {
 # Network Settings
 # ===================================================
 variable "network_devices" {
-  description = "Network interface configurations"
+  description = "Network interface configurations, defaults to one virtio interface on vmbr0 with firewall enabled."
   type = list(object({
     model        = optional(string, "virtio")
     bridge       = optional(string, "vmbr0")
@@ -254,7 +241,7 @@ variable "network_devices" {
 variable "cloud_init" {
   description = "Cloud-init configuration, datastore must allow content type 'snippets' and disk datastore must allow VM images"
   type = object({
-    datastore_id        = string
+    datastore_id        = optional(string, "local")
     node_name           = optional(string)
     disk_datastore_id   = optional(string, "local-lvm")
     interface           = optional(string)
