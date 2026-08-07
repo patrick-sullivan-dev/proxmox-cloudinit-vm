@@ -52,7 +52,7 @@ Type:
 
 ```hcl
 object({
-    datastore_id        = string
+    datastore_id        = optional(string, "local")
     node_name           = optional(string)
     disk_datastore_id   = optional(string, "local-lvm")
     interface           = optional(string)
@@ -97,6 +97,8 @@ Do not include an index such as scsi0; indexes are assigned automatically.
 
 The import\_from and file\_id values are populated automatically for the  
 first disk using the cloud\_image var.
+
+Defaults to a single 25GB disk on local-lvm with scsi interface and raw format.
 
 Type:
 
@@ -247,28 +249,11 @@ Description: Cloud image used to initialize the VM.
 
 Provide either import\_from or file\_id using a Proxmox file identifier.
 
-For uncompressed images stored with content type "import":
+Use one of the following, prefer import\_from unless using an iso or compressed image.  
+import\_from: "<datastore\_id>:import/<file\_name>"  
+file\_id: "<datastore\_id>:<content\_type>/<file\_name>"
 
-  cloud\_image = {  
-    import\_from = "<datastore\_id>:import/<file\_name>"
-  }
-
-For images stored under another supported content type, such as "iso":
-
-  cloud\_image = {  
-    file\_id = "<datastore\_id>:<content\_type>/<file\_name>"
-  }
-
-Either value may also reference the ID returned by a  
-proxmox\_virtual\_environment\_download\_file resource:
-
-  cloud\_image = {  
-    import\_from = proxmox\_virtual\_environment\_download\_file.ubuntu\_cloud\_image.id
-  }
-
-  cloud\_image = {  
-    file\_id = proxmox\_virtual\_environment\_download\_file.ubuntu\_cloud\_image.id
-  }
+A proxmox\_virtual\_environment\_download\_file resource id can also be used instead.
 
 Type:
 
@@ -409,7 +394,7 @@ Default: `false`
 
 ### <a name="input_network_devices"></a> [network\_devices](#input\_network\_devices)
 
-Description: Network interface configurations
+Description: Network interface configurations, defaults to one virtio interface on vmbr0 with firewall enabled.
 
 Type:
 
@@ -600,10 +585,12 @@ Default: `false`
 
 ### <a name="input_system"></a> [system](#input\_system)
 
-Description: System configuration, defaults to q35 / ovmf / l26 with a 4m EFI disk and no TPM.
+Description: System configuration
 
-EFI disk automatically created when bios is set to "ovmf", only need to change if not happy with defaults.  
-Datastores for EFI and TPM state default to local-lvm and can be overridden with datastore\_id.
+EFI disk automatically created when bios is set to "ovmf".   
+datastore\_id for EFI and TPM state default to local-lvm.
+
+Defaults to q35 / ovmf / l26 with a 4m EFI disk and no TPM.
 
 Type:
 
