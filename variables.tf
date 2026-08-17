@@ -116,10 +116,13 @@ variable "disks" {
     Specify only the disk interface type: scsi, sata, or virtio.
     Do not include an index such as scsi0; indexes are assigned automatically.
 
-    The import_from and file_id values are populated automatically for the
-    first disk using the cloud_image var.
+    The first disk is the boot disk. Its import_from and file_id values fall
+    back to the matching cloud_image value. Exactly one of file_id,
+    import_from, or path_in_datastore must resolve for that disk.
 
-    Defaults to a single 25GB disk on local-lvm with scsi interface and raw format.
+    At least one disk is required. Each entry defaults to the local-lvm
+    datastore, scsi interface, and raw format; disk size is provider-defined
+    when omitted.
   EOT
 
   type = list(object({
@@ -170,11 +173,13 @@ variable "cloud_image" {
 
     Provide either import_from or file_id using a Proxmox file identifier.
 
-    Use one of the following, prefer import_from unless using an iso or compressed image.
+    This object may be omitted only when the first disks entry supplies its
+    own image source. Use one of the following; prefer import_from unless
+    using an ISO or compressed image.
     import_from: "<datastore_id>:import/<file_name>"
     file_id: "<datastore_id>:<content_type>/<file_name>"
 
-    A proxmox_virtual_environment_download_file resource id can also be used instead.
+    A proxmox_download_file resource id can also be used instead.
   EOT
 
   type = object({
@@ -239,7 +244,16 @@ variable "network_devices" {
 # ===================================================
 
 variable "cloud_init" {
-  description = "Cloud-init configuration, datastore must allow content type 'snippets' and disk datastore must allow VM images"
+  description = <<-EOT
+    Cloud-init configuration.
+
+    datastore_id must allow the snippets content type. disk_datastore_id must
+    allow VM disk images. user_data and network_data default to one entry each;
+    network_data must contain the same number of entries as network_devices.
+
+    User passwords must be Cloud-init-compatible password hashes. Prefer
+    authorized_keys or ssh_import_ids instead.
+  EOT
   type = object({
     datastore_id        = optional(string, "local")
     node_name           = optional(string)
@@ -456,7 +470,7 @@ variable "rng" {
 }
 
 variable "serial_device" {
-  description = "Serial device configuration"
+  description = "Serial device configuration, defaults to one socket device, set to null for no serial device"
   type = list(object({
     device = optional(string, "socket")
   }))
