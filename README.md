@@ -274,7 +274,7 @@ Type:
 
 ```hcl
 object({
-    architecture = optional(string, "x86_64")
+    architecture = optional(string)
     cores        = optional(number, 2)
     flags        = optional(list(string))
     hotplugged   = optional(number)
