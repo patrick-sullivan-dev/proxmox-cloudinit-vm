@@ -77,7 +77,7 @@ variable "cpu" {
   description = "CPU configuration, defaults to 2 x86-64-v2-AES cores"
 
   type = object({
-    architecture = optional(string, "x86_64")
+    architecture = optional(string)
     cores        = optional(number, 2)
     flags        = optional(list(string))
     hotplugged   = optional(number)
