@@ -81,6 +81,15 @@ module "vm" {
   vm_id     = 200
   name      = "ubuntu-demo"
   node_name = "pve"
+  tags      = ["terraform", "ubuntu"]
+
+  cpu = {
+    cores = 4
+  }
+
+  memory = {
+    dedicated = 4096
+  }
 
   cloud_image = {
     import_from = proxmox_download_file.ubuntu.id
@@ -99,6 +108,7 @@ module "vm" {
     datastore_id      = "local"
     disk_datastore_id = "local-lvm"
     hostname          = "ubuntu-demo"
+    packages          = ["curl", "jq"]
 
     user_data = [{
       username = "ubuntu"
@@ -120,7 +130,7 @@ output "vm_ipv4_addresses" {
 }
 ```
 
-Pin `source` to a release tag or full commit SHA before using the module in a stable environment.
+Outside of testing, you should pin `source` to a release tag or full commit SHA before using the module. New commits/releases may contain breaking changes 
 
 ### 4. Apply and connect
 
@@ -132,7 +142,7 @@ terraform output -json vm_ipv4_addresses
 ssh ubuntu@<guest-ip>
 ```
 
-The first boot can take several minutes while Cloud-init updates packages and installs the QEMU guest agent. Check the Proxmox console or run `cloud-init status --wait` inside the guest if SSH is not available yet.
+The first boot can take several minutes while Cloud-init updates packages and installs the QEMU guest agent. Check the Proxmox console or run `cloud-init status --wait` inside the guest if SSH is not available yet. For me with a SATA SSD and 1gig networking, it takes about 2min for Terraform to download the image and set up the VM completetly. 
 
 ## Usage examples
 
@@ -407,11 +417,11 @@ terraform-docs .
 
 The template validation script uses placeholder cloud-init values and renders the files into a temporary directory, validates it with `cloud-init schema`, and deletes it on exit. It does **not** read or use caller variables/credentials. It simply serves to check that the .tftpl templates produce valid Cloud-init snippets, not to check if callers cloud_init values are valid. 
 
-Generated module reference content is controlled by `.terraform-docs.yml`; edit Terraform descriptions or the that configuration file instead of changing the generated block by hand.
+The `Module reference` section is controlled by `.terraform-docs.yml`, edit Terraform descriptions or that configuration file instead of changing the generated block by hand.
 
 ## Contributing
 
-Issues and pull requests are welcome. Include a minimal sanitized reproduction, Terraform and provider versions, the Proxmox VE version, and the cloud image used. Never attach credentials, real Cloud-init secrets, private addresses, or unsanitized Terraform state.
+Issues and pull requests are welcome. Include any relavent information such as a sanitized reproduction, Terraform and provider versions, the Proxmox VE version, and the cloud image used.
 
 ## Future work
 
