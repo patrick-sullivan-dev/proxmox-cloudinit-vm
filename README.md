@@ -23,13 +23,15 @@ Defaults are opinionated for a modern Linux guest: Q35, OVMF/UEFI, two CPU cores
 ## Quick start
 
 > [!IMPORTANT]
-> Terraform `>= 1.13.5`
-> Proxmox VE 8.x or higher
-> The snippet datastore (module default: `local`) allows **Snippets** content type.
-> The cloud-image datastore (`local` is used for the example) allows the **Import** content type.
-> The VM datastore (default: `local-lvm`) allows **Disk image** content and has at least 25GB of space.
-> The target bridge (default: `vmbr0`) exists and reaches a network with DHCP.
-> SSH is required to upload snippets to Proxmox, configure an SSH username and either an agent, private key, or password. For the other operations API authentication is preferred, and is what will be used for the below examples.
+>
+> - Terraform `>= 1.13.5`
+> - Proxmox VE 8.x or later
+> - The snippet datastore (default: `local`) allows the **Snippets** content type.
+> - The cloud-image datastore (`local` in this example) allows the **Import** content type.
+> - The VM datastore (default: `local-lvm`) allows **Disk image** content and has at least 25 GB of space.
+> - The target bridge (default: `vmbr0`) exists and can reach a network with DHCP.
+> - SSH access is required to upload snippets. Configure an SSH username and an agent, private key, or password.
+> - API authentication is preferred for other operations and is used in the examples below.
 
 In the Proxmox web UI, storage content types are set under **Datacenter → Storage → select a datastore → Edit**. See the provider's [authentication documentation](https://registry.terraform.io/providers/bpg/proxmox/latest/docs#authentication) and [cloud-image guide](https://registry.terraform.io/providers/bpg/proxmox/latest/docs/guides/cloud-image) for details.
 
