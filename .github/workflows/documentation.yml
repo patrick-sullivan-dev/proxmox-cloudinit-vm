@@ -29,6 +29,6 @@ jobs:
         with:
           working-dir: .
           config-file: .terraform-docs.yml
-          output-method: ""
+          output-method: inject
           template: ""
           git-push: "true"
